@@ -5,6 +5,8 @@ library(tictoc)
 
 setwd("~/GIT/bs.diet/Script")
 rm(list=ls())
+cl <- makeCluster(detectCores() - 1)
+registerDoParallel(cl)
 #
 resources<-readRDS("../Data/resources_raw.100.10.rda")
 resource_conf<-readRDS("../Data/resources_conf.100.10.rda")
@@ -59,7 +61,37 @@ getNeighbors<-function(loc, direction, land_size){
   neighbors<-neighbors[x!=loc$x & y!=loc$y]
   neighbors
 }
-
+calc_lost_gain<-function(i){
+  loc_str<-names(cell_list)[i]
+  loc_str<-strsplit(loc_str, "_")[[1]]
+  loc<-data.table(x=as.numeric(loc_str[1]), y=as.numeric(loc_str[2]))
+  index<-(loc$y-1)*land_size + loc$x
+  v<-values(resources)[index,]
+  v_afford<-v-resource_conf$min_energy
+  v_afford[v_afford<0]<-0
+  for (j in c(1:length(v_afford))){
+    if (v_afford[j]>0){
+      taken_efficiency<-rep(0, length(cell_list[[i]]$individuals))
+      for (k in c(1:length(cell_list[[i]]$individuals))){
+        individual<-individual_list[[cell_list[[i]]$individuals[k]]]
+        taken_efficiency[k]<-individual$efficiency[j]
+        #individual_list[[cell_list[[i]]$individuals[k]]]<-individual
+      }
+      taken_efficiency<-sum(taken_efficiency)
+      base<-ifelse(taken_efficiency<1, 1, taken_efficiency)
+      #Calculate the energy gain for each individual, the total lost of a given resource in this cell.
+      for (k in c(1:length(cell_list[[i]]$individuals))){
+        individual<-individual_list[[cell_list[[i]]$individuals[k]]]
+        hp_gain<-v_afford[j] * individual$efficiency[j]/base
+        individual$hp_gain<-individual$hp_gain+hp_gain
+        v[j]<-v[j]-hp_gain
+        individual_list[[cell_list[[i]]$individuals[k]]]<-individual
+      }
+    }
+  }
+  values(resources)[index,]<-v
+  return(NULL) 
+}
 
 loc_test<-data.table(x=c(0, 2, 44, 1, 100, 100), y=c(1, 1, 43, 100, 100,1))
 index2xy(xy2index(loc_test,land_size),land_size)
@@ -121,46 +153,12 @@ for (steps in c(1:max_steps)){
       }
     }
   }
-  if (length(cell_list)==0){
-    print("ALL GONE!")
-    break()
-  }
   #toc()
   #Iterate through the cells which have individual(s), calculate the energy cost, lost and gain
-  #tic("Iterate through the cells which have individual(s), calculate the energy cost, lost and gain")
-  for (i in c(1:length(cell_list))){
-    loc_str<-names(cell_list)[i]
-    loc_str<-strsplit(loc_str, "_")[[1]]
-    loc<-data.table(x=as.numeric(loc_str[1]), y=as.numeric(loc_str[2]))
-    index<-(loc$y-1)*land_size + loc$x
-    v<-values(resources)[index,]
-    v_afford<-v-resource_conf$min_energy
-    v_afford[v_afford<0]<-0
-    for (j in c(1:length(v_afford))){
-      if (v_afford[j]>0){
-        taken_efficiency<-rep(0, length(cell_list[[i]]$individuals))
-        for (k in c(1:length(cell_list[[i]]$individuals))){
-          individual<-individual_list[[cell_list[[i]]$individuals[k]]]
-          taken_efficiency[k]<-individual$efficiency[j]
-          #individual_list[[cell_list[[i]]$individuals[k]]]<-individual
-        }
-        taken_efficiency<-sum(taken_efficiency)
-        base<-ifelse(taken_efficiency<1, 1, taken_efficiency)
-        #Calculate the energy gain for each individual, the total lost of a given resource in this cell.
-        for (k in c(1:length(cell_list[[i]]$individuals))){
-          individual<-individual_list[[cell_list[[i]]$individuals[k]]]
-          hp_gain<-v_afford[j] * individual$efficiency[j]/base
-          individual$hp_gain<-individual$hp_gain+hp_gain
-          v[j]<-v[j]-hp_gain
-          individual_list[[cell_list[[i]]$individuals[k]]]<-individual
-        }
-      }
-    }
-    values(resources)[index,]<-v
-    
-  }
+  tic("Iterate through the cells which have individual(s), calculate the energy cost, lost and gain")
+  xxx<-mclapply(1:length(cell_list), calc_lost_gain, mc.cores = 10)
   resource_snapshot[[length(resource_snapshot)+1]]<-resources
-  #toc()
+  toc()
   
   #set the new hp for each individual
   #tic("set the new hp for each individual")
@@ -180,7 +178,7 @@ for (steps in c(1:max_steps)){
       )
       log[[length(log)+1]]<-individual_log
       
-     
+      
       individual$alive<-(individual$hp>0)&(individual$age<=individual$max_age)
       
       #reproduce
