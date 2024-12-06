@@ -30,7 +30,7 @@ resource_snapshot<-list()
 max_steps<-1e4
 pb <- txtProgressBar(min=1, max=max_steps, initial=1, style=3)
 steps<-1
-for (steps in c(1:max_steps)){
+for (steps in c(3556:max_steps)){
   #get the next location for all the individuals
   #tic("get the next location for all the individuals")
   for (i in c(1:length(individual_list))){
