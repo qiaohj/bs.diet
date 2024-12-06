@@ -13,7 +13,7 @@ resource_conf<-data.table(id=c(1:resouce_n),
 
 resource_conf<-data.table(id=c(1:resouce_n), 
                           res=rep(10, resouce_n),
-                          n_cell=rep(10, resouce_n),
+                          n_cell=rep(30, resouce_n),
                           energy_density=rep(1, resouce_n),
                           r=rep(0.1, resouce_n),
                           K=rep(100, resouce_n),

@@ -2,13 +2,13 @@ library(data.table)
 library(terra)
 library(ggplot2)
 library(tictoc)
-
+library(parallel)
+library(SharedObject)
 setwd("~/GIT/bs.diet/Script")
 rm(list=ls())
-cl <- makeCluster(detectCores() - 1)
-registerDoParallel(cl)
 #
 resources<-readRDS("../Data/resources_raw.100.10.rda")
+#resources<-share(resources)
 resource_conf<-readRDS("../Data/resources_conf.100.10.rda")
 land_size<-nrow(resources[[1]])
 direction<-c(-2, -1, 0, 1, 2)
@@ -16,7 +16,9 @@ blank_path<-resources[[1]]
 values(blank_path)<-0
 
 number_species<-10
-individual_list<-list()
+
+individual_list <- share(list())
+
 for (i in c(1:number_species)){
   init_loc<-round(runif(2, 1, land_size))
   init_loc<-data.table(x=init_loc[1], y=init_loc[2])
@@ -37,9 +39,8 @@ for (i in c(1:number_species)){
                    loc=init_loc,
                    hp_gain=0,
                    move=F,
-                   alive=T,
-                   path=blank_path)
-  individual_list[[i]]<-individual
+                   alive=T)
+  individual_list[[i]]<-share(individual)
 }
 
 xy2index<-function(loc, land_size){
@@ -61,7 +62,12 @@ getNeighbors<-function(loc, direction, land_size){
   neighbors<-neighbors[x!=loc$x & y!=loc$y]
   neighbors
 }
-calc_lost_gain<-function(i){
+setResources<-function(item){
+  values(resources)[item$index,]<<-item$v
+  return(NULL)
+}
+calc_lost_gain<-function(i, land_size, resources,
+                         resource_conf){
   loc_str<-names(cell_list)[i]
   loc_str<-strsplit(loc_str, "_")[[1]]
   loc<-data.table(x=as.numeric(loc_str[1]), y=as.numeric(loc_str[2]))
@@ -85,12 +91,16 @@ calc_lost_gain<-function(i){
         hp_gain<-v_afford[j] * individual$efficiency[j]/base
         individual$hp_gain<-individual$hp_gain+hp_gain
         v[j]<-v[j]-hp_gain
+        if (cell_list[[i]]$individuals[k]==1){
+          print(sprintf("gained.%f", individual$hp_gain))
+        }
         individual_list[[cell_list[[i]]$individuals[k]]]<-individual
       }
     }
   }
-  values(resources)[index,]<-v
-  return(NULL) 
+  print(sprintf("gained.%f, check", individual_list[[1]]$hp_gain))
+  #values(resources)[index,]<-v
+  return(list("index"=index, "v"=v)) 
 }
 
 loc_test<-data.table(x=c(0, 2, 44, 1, 100, 100), y=c(1, 1, 43, 100, 100,1))
@@ -119,7 +129,7 @@ for (steps in c(1:max_steps)){
       #try to move to a fresh cell which is never been visited by the given individual.
       path_index_raw<-xy2index(neighbors, land_size)
       path_index<-path_index_raw
-      path_index<-path_index[!values(individual$path)[path_index]==1]
+      path_index<-path_index[!values(blank_path)[path_index]==1]
       
       
       #if all the neighbors are visited, pick a random neighbor cell.
@@ -134,14 +144,14 @@ for (steps in c(1:max_steps)){
       
       individual$loc<-next_loc
       index<-(individual$loc$y-1)*land_size + individual$loc$x
-      values(individual$path)[index]<-1
+      #values(individual$path)[index]<-1
     }
     individual_list[[i]]<-individual
   }
   #toc()
   #calculating the energy distribution for all the individuals in the same cell
   #tic("calculating the energy distribution for all the individuals in the same cell")
-  cell_list<-list()
+  cell_list<-share(list())
   for (i in c(1:length(individual_list))){
     individual<-individual_list[[i]]
     if (individual$alive){
@@ -153,10 +163,18 @@ for (steps in c(1:max_steps)){
       }
     }
   }
+  if (length(cell_list)==0){
+    print("ALL GONE!")
+    break()
+  }
   #toc()
   #Iterate through the cells which have individual(s), calculate the energy cost, lost and gain
   tic("Iterate through the cells which have individual(s), calculate the energy cost, lost and gain")
-  xxx<-mclapply(1:length(cell_list), calc_lost_gain, mc.cores = 10)
+  print(individual_list[[1]]$hp)
+  xxx<-mclapply(1:length(cell_list), function(i) 
+    calc_lost_gain(i, land_size, resources, resource_conf), mc.cores = 10)
+  print(individual_list[[1]]$hp_gain)
+  result <- lapply(xxx, setResources)
   resource_snapshot[[length(resource_snapshot)+1]]<-resources
   toc()
   

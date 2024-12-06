@@ -9,7 +9,8 @@ rm(list=ls())
 resources<-readRDS("../Data/resources_raw.100.10.rda")
 resource_conf<-readRDS("../Data/resources_conf.100.10.rda")
 land_size<-nrow(resources[[1]])
-direction<-c(-2, -1, 0, 1, 2)
+#direction<-c(-2, -1, 0, 1, 2)
+direction<-c(-1, 0, 1)
 blank_path<-resources[[1]]
 values(blank_path)<-0
 
@@ -127,7 +128,7 @@ for (steps in c(1:max_steps)){
   }
   #toc()
   #Iterate through the cells which have individual(s), calculate the energy cost, lost and gain
-  #tic("Iterate through the cells which have individual(s), calculate the energy cost, lost and gain")
+  tic("Iterate through the cells which have individual(s), calculate the energy cost, lost and gain")
   for (i in c(1:length(cell_list))){
     loc_str<-names(cell_list)[i]
     loc_str<-strsplit(loc_str, "_")[[1]]
@@ -160,7 +161,7 @@ for (steps in c(1:max_steps)){
     
   }
   resource_snapshot[[length(resource_snapshot)+1]]<-resources
-  #toc()
+  toc()
   
   #set the new hp for each individual
   #tic("set the new hp for each individual")
