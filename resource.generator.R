@@ -1,9 +1,10 @@
 library(data.table)
 library(terra)
 library(ggplot2)
-setwd("~/GIT/bs.diet/Script")
-land_size<-100
-resouce_n<-5
+source("env.R")
+
+land_size<-30
+resouce_n<-2
 resolutions<-c(1, 5, 10, 20, 50)
 resource_conf<-data.table(id=c(1:resouce_n), 
                           res=resolutions[round(runif(resouce_n, 1, resouce_n))],
@@ -12,10 +13,10 @@ resource_conf<-data.table(id=c(1:resouce_n),
                           K=round(runif(resouce_n, 10, 100)))
 
 resource_conf<-data.table(id=c(1:resouce_n), 
-                          res=rep(10, resouce_n),
-                          n_cell=rep(30, resouce_n),
+                          res=rep(1, resouce_n),
+                          n_cell=rep(900, resouce_n),
                           energy_density=rep(1, resouce_n),
-                          r=rep(0.1, resouce_n),
+                          r=rep(0.05, resouce_n),
                           K=rep(100, resouce_n),
                           init_energy=rep(100, resouce_n),
                           min_energy=10)
@@ -39,8 +40,8 @@ resources_raw<-rast(resources)
 names(resources_raw)<-sprintf("resource.%d", c(1:nlyr(resources_raw)))
 plot(resources_raw[[2]])
 
-saveRDS(resources_raw, "../Data/resources_raw.100.10.rda")
-saveRDS(resource_conf, "../Data/resources_conf.100.10.rda")
+saveRDS(resources_raw, "../Data/resources_raw.full.rda")
+saveRDS(resource_conf, "../Data/resources_raw.full.conf.rda")
 if (F){
   item<-data.table(id=0, v=100)
   v<-list()

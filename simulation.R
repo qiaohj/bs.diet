@@ -2,80 +2,34 @@ library(data.table)
 library(terra)
 library(ggplot2)
 library(tictoc)
-
-setwd("~/GIT/bs.diet/Script")
 rm(list=ls())
+source("env.R")
+source("functions.R")
+
 #
-resources<-readRDS("../Data/resources_raw.100.10.rda")
-resource_conf<-readRDS("../Data/resources_conf.100.10.rda")
+resources<-readRDS("../Data/resources_raw.full.rda")
+resource_conf<-readRDS("../Data/resources_raw.full.conf.rda")
 land_size<-nrow(resources[[1]])
 #direction<-c(-2, -1, 0, 1, 2)
-direction<-c(-1, 0, 1)
+
+
+individual_list<-readRDS("../Data/gen.25.spe.50.res.2.rda")
 blank_path<-resources[[1]]
 values(blank_path)<-0
-
-number_species<-10
-individual_list<-list()
-for (i in c(1:number_species)){
-  init_loc<-round(runif(2, 1, land_size))
-  init_loc<-data.table(x=init_loc[1], y=init_loc[2])
-  init_loc<-data.table(x=50, y=50)
-  
-  individual<-list(id=i, 
-                   sp_id=as.character(i),
-                   init_hp=1000, 
-                   hp=1000,
-                   hp_lost=10,
-                   efficiency=c(0.4, 0.3, 0, 0, 0.1),
-                   max_age=6000,
-                   age=0,
-                   reproduction_threshold=5000,
-                   reproduction_probability=0.1,
-                   reproduction_cost=3000,
-                   init_loc=init_loc,
-                   loc=init_loc,
-                   hp_gain=0,
-                   move=F,
-                   alive=T,
-                   path=blank_path)
+number_species<-c()
+for (i in c(1:length(individual_list))){
+  individual<-individual_list[[i]]
+  individual$path<-blank_path
+  number_species<-c(number_species, individual$id)
   individual_list[[i]]<-individual
 }
 
-xy2index<-function(loc, land_size){
-  index<-land_size * (loc$y-1)+loc$x
-  index[between(index, 1, land_size^2)]
-}
-
-index2xy<-function(index, land_size){
-  y <- (index - 1) %/% land_size + 1
-  x <- (index - 1) %% land_size + 1
-  
-  data.table(x=x, y=y)
-}
-getNeighbors<-function(loc, direction, land_size){
-  neighbors<-data.table(expand.grid(x=direction+loc$x, 
-                                    y=direction+loc$y))
-  neighbors<-neighbors[between(x, 1, land_size) &
-                         between(y, 1, land_size)]
-  neighbors<-neighbors[x!=loc$x & y!=loc$y]
-  neighbors
-}
-
-
-loc_test<-data.table(x=c(0, 2, 44, 1, 100, 100), y=c(1, 1, 43, 100, 100,1))
-index2xy(xy2index(loc_test,land_size),land_size)
-
-getNeighbors(loc_test[1], direction, land_size)
-getNeighbors(loc_test[2], direction, land_size)
-getNeighbors(loc_test[3], direction, land_size)
-getNeighbors(loc_test[4], direction, land_size)
-getNeighbors(loc_test[5], direction, land_size)
-
+number_species<-max(number_species)
 log<-list()
 resource_snapshot<-list()
 max_steps<-1e4
 pb <- txtProgressBar(min=1, max=max_steps, initial=1, style=3)
-
+steps<-1
 for (steps in c(1:max_steps)){
   #get the next location for all the individuals
   #tic("get the next location for all the individuals")
@@ -83,13 +37,14 @@ for (steps in c(1:max_steps)){
     individual<-individual_list[[i]]
     
     if (individual$alive & individual$move){
-      neighbors<-getNeighbors(individual$loc, direction, land_size)
+      neighbors<-getNeighbors(individual$loc, 
+                              individual$direction, 
+                              land_size)
       
       #try to move to a fresh cell which is never been visited by the given individual.
       path_index_raw<-xy2index(neighbors, land_size)
       path_index<-path_index_raw
       path_index<-path_index[!values(individual$path)[path_index]==1]
-      
       
       #if all the neighbors are visited, pick a random neighbor cell.
       if (length(path_index)==0){
@@ -128,7 +83,7 @@ for (steps in c(1:max_steps)){
   }
   #toc()
   #Iterate through the cells which have individual(s), calculate the energy cost, lost and gain
-  tic("Iterate through the cells which have individual(s), calculate the energy cost, lost and gain")
+  #tic("Iterate through the cells which have individual(s), calculate the energy cost, lost and gain")
   for (i in c(1:length(cell_list))){
     loc_str<-names(cell_list)[i]
     loc_str<-strsplit(loc_str, "_")[[1]]
@@ -146,7 +101,8 @@ for (steps in c(1:max_steps)){
           #individual_list[[cell_list[[i]]$individuals[k]]]<-individual
         }
         taken_efficiency<-sum(taken_efficiency)
-        base<-ifelse(taken_efficiency<1, 1, taken_efficiency)
+        base<-ifelse(taken_efficiency<v_afford[j], 
+                     v_afford[j], taken_efficiency)
         #Calculate the energy gain for each individual, the total lost of a given resource in this cell.
         for (k in c(1:length(cell_list[[i]]$individuals))){
           individual<-individual_list[[cell_list[[i]]$individuals[k]]]
@@ -160,8 +116,8 @@ for (steps in c(1:max_steps)){
     values(resources)[index,]<-v
     
   }
-  resource_snapshot[[length(resource_snapshot)+1]]<-resources
-  toc()
+  
+  #toc()
   
   #set the new hp for each individual
   #tic("set the new hp for each individual")
@@ -171,19 +127,17 @@ for (steps in c(1:max_steps)){
       individual$hp<-individual$hp-individual$hp_lost+individual$hp_gain
       individual$age<-individual$age+1
       individual$move<-individual$hp_gain<individual$hp_lost
-      
+      individual$alive<-(individual$hp>0)&(individual$age<=individual$max_age)
       individual_log<-data.table(id=individual$id, 
                                  sp_id=individual$sp_id, step=steps,
                                  x=individual$loc$x, y=individual$loc$y,
                                  hp=individual$hp, move=individual$move,
                                  hp_gain=individual$hp_gain,
-                                 hp_lost=individual$hp_lost
+                                 hp_lost=individual$hp_lost,
+                                 label=individual$label,
+                                 alive=individual$alive
       )
       log[[length(log)+1]]<-individual_log
-      
-     
-      individual$alive<-(individual$hp>0)&(individual$age<=individual$max_age)
-      
       #reproduce
       if (individual$hp>individual$reproduction_threshold & 
           individual$hp_gain>individual$hp_lost &
@@ -215,15 +169,52 @@ for (steps in c(1:max_steps)){
   all_v<-values(resources)
   v_reproduct<-all_v*resource_conf$r * ((resource_conf$K-all_v)/resource_conf$K)
   values(resources)<-values(resources)+ v_reproduct
+  resource_snapshot[[steps]]<-resources
   setTxtProgressBar(pb, steps)
   #toc()
 }
-log<-rbindlist(log)
-log
-table(log$move)
-log_path<-unique(log[, c("id", "x", "y")])
-ggplot(log_path)+geom_tile(aes(x=x, y=y, fill=factor(id)))+
-  theme(legend.position = "none")
-plot(resources[[c(1, 2, 5)]])
-ggplot(log)+geom_line(aes(x=step, y=hp, color=factor(id)))+
-  theme(legend.position = "none")
+logdf<-rbindlist(log)
+logdf
+table(logdf$move)
+log_path<-unique(logdf[, c("id", "x", "y", "label", "alive")])
+ggplot(log_path)+geom_tile(aes(x=x, y=y, fill=label))+
+  facet_grid(label~alive)
+plot(resources[[c(1, 2)]])
+p1<-ggplot(logdf[step<5000])+geom_line(aes(x=step, y=hp, group=id, color=label))
+
+log_N<-logdf[, .(N=length(unique(id))), by=list(step, label)]
+
+p2<-ggplot(log_N[step<5000])+geom_line(aes(x=step, y=N, color=label))
+ddd<-list()
+for (i in c(1:length(resource_snapshot))){
+  v1<-sum(values(resource_snapshot[[1]]))
+  v2<-sum(values(resource_snapshot[[2]]))
+  v3<-sum(values(resource_snapshot[[3]]))
+  for (j in c(1:nlyr(resource_snapshot[[i]]))){
+    item<-data.frame(step=i, resource=j,
+                     v=sum(values(resource_snapshot[[i]][[j]])))
+    ddd[[length(ddd)+1]]<-item
+  }
+}
+ddd<-rbindlist(ddd)
+
+p3<-ggplot(ddd)+geom_line(aes(x=step, y=v, color=factor(resource)))+
+  scale_y_log10()
+
+p<-ggpubr::ggarrange	(plotlist = list(p1, p2, p3), nrow =3)
+ggsave(p, filename="../Figures/1.png", width=10, height=15)
+NNN<-logdf[, .(N=.N, label=length(unique(label))), by=list(x, y, step)]
+
+NNN[label==3]
+
+
+xx<-16
+yy<-17
+stepsss<-13
+log[step==stepsss & x==xx & y==yy]
+values(resource_snapshot[[stepsss-1]])[xy2index(data.table(x=xx, y=yy), land_size),]
+values(resource_snapshot[[stepsss]])[xy2index(data.table(x=xx, y=yy), land_size),]
+
+(40.64046 -10)/4
+
+
