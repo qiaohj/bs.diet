@@ -1,1 +1,1 @@
-setwd("~/GIT/bs.diet/Script")
+setwd("/media/huijieqiao/SSD_Fast_11/bs.diet/bs.diet")

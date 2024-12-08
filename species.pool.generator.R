@@ -3,7 +3,11 @@ library(terra)
 library(ggplot2)
 library(tictoc)
 
-source("env.R")
+setwd("/media/huijieqiao/SSD_Fast_11/bs.diet/bs.diet")
+res1<-c(15, 10)
+res2<-c(50, 0)
+res3<-c(0, 20)
+
 resources<-readRDS("../Data/resources_raw.full.rda")
 resource_conf<-readRDS("../Data/resources_raw.full.conf.rda")
 land_size<-nrow(resources[[1]])
@@ -34,11 +38,13 @@ template<-list(id=0,
                label="")
 
 individual_list<-list()
+
+
 for (i in c(1:10)){
   individual<-template
   individual$id<-i
   individual$sp_id<-sprintf("generalized.%d", i)
-  individual$efficiency<-c(15, 15)
+  individual$efficiency<-res1
   individual$label<-"generalized"
   individual_list[[i]]<-individual
 }
@@ -47,7 +53,7 @@ for (i in c(11:20)){
   individual<-template
   individual$id<-i
   individual$sp_id<-sprintf("specialized1.%d", i-10)
-  individual$efficiency<-c(50, 0)
+  individual$efficiency<-res2
   individual$label<-"specialized1"
   individual_list[[i]]<-individual
 }
@@ -57,9 +63,10 @@ for (i in c(21:30)){
   individual<-template
   individual$id<-i
   individual$sp_id<-sprintf("specialized2.%d", i-20)
-  individual$efficiency<-c(0, 50)
+  individual$efficiency<-res3
   individual$label<-"specialized2"
   individual_list[[i]]<-individual
 }
 
-saveRDS(individual_list, "../Data/gen.25.spe.50.res.2.rda")
+saveRDS(individual_list, sprintf("../Data/sp.%d.%d.%d.%d.%d.%d.rda", 
+                                 res1[1], res1[2], res2[1], res2[2], res3[1], res3[2]))

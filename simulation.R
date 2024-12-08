@@ -3,17 +3,25 @@ library(terra)
 library(ggplot2)
 library(tictoc)
 rm(list=ls())
+setwd("/media/huijieqiao/SSD_Fast_11/bs.diet/bs.diet")
+args = commandArgs(trailingOnly=TRUE)
+res.conf<-args[1]
+sp.conf<-args[2]
+
+
+
 source("env.R")
 source("functions.R")
 
 #
-resources<-readRDS("../Data/resources_raw.full.rda")
-resource_conf<-readRDS("../Data/resources_raw.full.conf.rda")
+resources<-readRDS(sprintf("../Data/%s.rda", res.conf))
+resource_conf<-readRDS(sprintf("../Data/%s.conf.rda", res.conf))
 land_size<-nrow(resources[[1]])
 #direction<-c(-2, -1, 0, 1, 2)
 
 
-individual_list<-readRDS("../Data/gen.25.spe.50.res.2.rda")
+individual_list<-readRDS(sprintf("../Data/%s.rda", sp.conf))
+
 blank_path<-resources[[1]]
 values(blank_path)<-0
 number_species<-c()
@@ -169,52 +177,56 @@ for (steps in c(3556:max_steps)){
   all_v<-values(resources)
   v_reproduct<-all_v*resource_conf$r * ((resource_conf$K-all_v)/resource_conf$K)
   values(resources)<-values(resources)+ v_reproduct
-  resource_snapshot[[steps]]<-resources
+  resource_snapshot[[steps]]<-serialize(resources, NULL)
   setTxtProgressBar(pb, steps)
   #toc()
 }
 logdf<-rbindlist(log)
-logdf
+target<-sprintf("%s_%s", res.conf, sp.conf)
+saveRDS(logdf, sprintf("../Results/log.%s.rda", target))
+saveRDS(resource_snapshot, sprintf("../Results/resource_snapshot.%s.rda", target))
+
 table(logdf$move)
 log_path<-unique(logdf[, c("id", "x", "y", "label", "alive")])
 ggplot(log_path)+geom_tile(aes(x=x, y=y, fill=label))+
   facet_grid(label~alive)
 plot(resources[[c(1, 2)]])
-p1<-ggplot(logdf[step<5000])+geom_line(aes(x=step, y=hp, group=id, color=label))
+p1<-ggplot(logdf)+geom_line(aes(x=step, y=hp, group=id, color=label))
 
 log_N<-logdf[, .(N=length(unique(id))), by=list(step, label)]
 
-p2<-ggplot(log_N[step<5000])+geom_line(aes(x=step, y=N, color=label))
+p2<-ggplot(log_N)+geom_line(aes(x=step, y=N, color=label))
 ddd<-list()
 for (i in c(1:length(resource_snapshot))){
-  v1<-sum(values(resource_snapshot[[1]]))
-  v2<-sum(values(resource_snapshot[[2]]))
-  v3<-sum(values(resource_snapshot[[3]]))
-  for (j in c(1:nlyr(resource_snapshot[[i]]))){
+  rrr<-unserialize(resource_snapshot[[i]])
+  
+  for (j in c(1:nlyr(rrr))){
     item<-data.frame(step=i, resource=j,
-                     v=sum(values(resource_snapshot[[i]][[j]])))
+                     v=sum(values(rrr[[j]])))
     ddd[[length(ddd)+1]]<-item
   }
 }
 ddd<-rbindlist(ddd)
-
+saveRDS(ddd, sprintf("../Results/resource_summary.%s.rda", target))
 p3<-ggplot(ddd)+geom_line(aes(x=step, y=v, color=factor(resource)))+
   scale_y_log10()
 
 p<-ggpubr::ggarrange	(plotlist = list(p1, p2, p3), nrow =3)
-ggsave(p, filename="../Figures/1.png", width=10, height=15)
-NNN<-logdf[, .(N=.N, label=length(unique(label))), by=list(x, y, step)]
-
-NNN[label==3]
-
-
-xx<-16
-yy<-17
-stepsss<-13
-log[step==stepsss & x==xx & y==yy]
-values(resource_snapshot[[stepsss-1]])[xy2index(data.table(x=xx, y=yy), land_size),]
-values(resource_snapshot[[stepsss]])[xy2index(data.table(x=xx, y=yy), land_size),]
-
-(40.64046 -10)/4
-
-
+ggsave(p, filename=sprintf("../Figures/fig.%s.png", target), width=10, height=15)
+if (F){
+  NNN<-logdf[, .(N=.N, label=length(unique(label))), by=list(x, y, step)]
+  
+  NNN[label==3]
+  
+  
+  xx<-16
+  yy<-17
+  stepsss<-13
+  log[step==stepsss & x==xx & y==yy]
+  values(resource_snapshot[[stepsss-1]])[xy2index(data.table(x=xx, y=yy), land_size),]
+  values(resource_snapshot[[stepsss]])[xy2index(data.table(x=xx, y=yy), land_size),]
+  
+  (40.64046 -10)/4
+  
+  
+}
