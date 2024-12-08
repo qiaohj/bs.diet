@@ -3,7 +3,8 @@ library(terra)
 library(ggplot2)
 library(tictoc)
 rm(list=ls())
-setwd("/media/huijieqiao/SSD_Fast_11/bs.diet/bs.diet")
+#setwd("/media/huijieqiao/SSD_Fast_11/bs.diet/bs.diet")
+setwd("~/GIT/bs.diet/Script")
 args = commandArgs(trailingOnly=TRUE)
 res.conf<-args[1]
 sp.conf<-args[2]

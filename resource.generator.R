@@ -1,16 +1,11 @@
 library(data.table)
 library(terra)
 library(ggplot2)
-source("env.R")
-
+#setwd("/media/huijieqiao/SSD_Fast_11/bs.diet/bs.diet")
+setwd("~/GIT/bs.diet/Script")
 land_size<-30
 resouce_n<-2
 resolutions<-c(1, 5, 10, 20, 50)
-resource_conf<-data.table(id=c(1:resouce_n), 
-                          res=resolutions[round(runif(resouce_n, 1, resouce_n))],
-                          energy_density=round(runif(resouce_n, 1, 100)),
-                          r=round(runif(resouce_n, 0, 0.1)),
-                          K=round(runif(resouce_n, 10, 100)))
 
 resource_conf<-data.table(id=c(1:resouce_n), 
                           res=rep(1, resouce_n),
