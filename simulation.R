@@ -115,23 +115,32 @@ simulation<-function(resource.group.id, individual.pool.id, max_steps){
     for (i in c(1:length(individual_list))){
       individual<-individual_list[[i]]
       if (individual$alive){
-        individual$hp<-individual$hp-individual$hp_lost+individual$hp_gain
+        if (individual$move){
+          individual$hp<-individual$hp-individual$hp_lost_move+individual$hp_gain
+          hp_lost<-individual$hp_lost_move
+        }else{
+          individual$hp<-individual$hp-individual$hp_lost_reside+individual$hp_gain
+          hp_lost<-individual$hp_lost_reside
+        }
         individual$age<-individual$age+1
-        individual$move<-individual$hp_gain<individual$hp_lost
+        individual$move<-individual$hp_gain<hp_lost
         individual$alive<-(individual$hp>0)&(individual$age<=individual$max_age)
         individual_log<-data.table(id=individual$id, 
                                    sp_id=individual$sp_id, step=steps,
                                    x=individual$loc$x, y=individual$loc$y,
                                    hp=individual$hp, move=individual$move,
                                    hp_gain=individual$hp_gain,
-                                   hp_lost=individual$hp_lost,
+                                   hp_lost_move=individual$hp_lost_move,
+                                   hp_lost_reside=individual$hp_lost_reside,
+                                   hp_lost=hp_lost,
                                    label=individual$label,
                                    alive=individual$alive
         )
         log[[length(log)+1]]<-individual_log
         #reproduce
+        
         if (individual$hp>individual$reproduction_threshold & 
-            individual$hp_gain>individual$hp_lost &
+            individual$hp_gain>hp_lost &
             individual$alive){
           rnd_number<-runif(1)
           if (rnd_number<=individual$reproduction_probability){
