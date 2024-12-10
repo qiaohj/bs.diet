@@ -1,4 +1,18 @@
-
+generate_new_individual<-function(individual, evolutionary.strategy="NONE"){
+  new_individual<-individual
+  new_individual$init_loc<-individual$loc
+  new_individual$id<-number_species
+  new_individual$sp_id<-sprintf("%s.%d", individual$sp_id, individual$id)
+  new_individual$hp<-individual$init_hp
+  new_individual$age<-0
+  new_individual$hp_gain<-0
+  new_individual$move<-F
+  new_individual$alive<-T
+  if (evolutionary.strategy!="NONE"){
+    #todo
+  }
+  new_individual
+}
 simulation<-function(resource.group.id, individual.pool.id, max_steps){
   #
   target<-sprintf("../Data/Simulations/%d.rda", individual.pool.id)
@@ -125,6 +139,12 @@ simulation<-function(resource.group.id, individual.pool.id, max_steps){
         individual$age<-individual$age+1
         individual$move<-individual$hp_gain<hp_lost
         individual$alive<-(individual$hp>0)&(individual$age<=individual$max_age)
+        if (individual$alive){
+          calc_env <- list(x = individual$age)
+          death_rate <- eval(individual$death_fun, envir = calc_env)
+          rnd<-runif(1)
+          individual$alive<-runif(1)>=death_rate
+        }
         individual_log<-data.table(id=individual$id, 
                                    sp_id=individual$sp_id, step=steps,
                                    x=individual$loc$x, y=individual$loc$y,
@@ -133,8 +153,11 @@ simulation<-function(resource.group.id, individual.pool.id, max_steps){
                                    hp_lost_move=individual$hp_lost_move,
                                    hp_lost_reside=individual$hp_lost_reside,
                                    hp_lost=hp_lost,
+                                   age=individual$age,
                                    label=individual$label,
-                                   alive=individual$alive
+                                   alive=individual$alive,
+                                   death_rate=death_rate,
+                                   random=rnd
         )
         log[[length(log)+1]]<-individual_log
         #reproduce
@@ -146,16 +169,8 @@ simulation<-function(resource.group.id, individual.pool.id, max_steps){
           if (rnd_number<=individual$reproduction_probability){
             individual$hp<-individual$hp-individual$reproduction_cost
             number_species<-number_species+1
-            new_individual<-individual
-            new_individual$init_loc<-individual$loc
-            new_individual$id<-number_species
-            new_individual$sp_id<-sprintf("%s.%d", individual$sp_id, individual$id)
-            new_individual$hp<-individual$init_hp
-            new_individual$age<-0
-            new_individual$hp_gain<-0
-            new_individual$move<-F
-            new_individual$alive<-T
-            individual_list[[number_species]]<-new_individual
+            
+            individual_list[[number_species]]<-generate_new_individual(individual)
           }
         }
         individual$hp_gain<-0

@@ -123,7 +123,9 @@ for (i in c(1:nrow(individual.pool))){
         loc<-data.table(x=loc[1], y=loc[2])
       }
       species.item$hp_gain<-0
-      
+      str_formula <- species.item$death_fun
+      formula_obj <- as.formula(str_formula)
+      rhs <- as.expression(formula_obj[[3]])
       
       individual.item<-list(id=0, 
            sp_id=species.item$species.id,
@@ -131,6 +133,7 @@ for (i in c(1:nrow(individual.pool))){
            hp=species.item$hp,
            hp_lost_move=species.item$hp_lost_move,
            hp_lost_reside=species.item$hp_lost_reside,
+           death_fun=rhs,
            efficiency=efficiency,
            max_age=species.item$max_age,
            age=species.item$age,
