@@ -31,26 +31,5 @@ if (F){
   class(x$link)<-"hyperlink"
   write_sheet(x, ss=config_link, sheet="scenario")
   
-  str_formula <- "y ~ 4.81 * 10^-9* (x - 1440.59)^2"
-  formula_obj <- as.formula(str_formula)
-  x <- 3
-  x2 <- 4
-  calc_env <- list(x = x)
   
-  # 将公式右侧转化为可计算表达式
-  rhs <- as.expression(formula_obj[[3]])
-  
-  # 计算结果
-  y_value <- eval(rhs, envir = calc_env)
-  
-  # 查看结果
-  print(y_value)
-  curve<-list()
-  for (x in c(0:6000)){
-    calc_env<-list(x=x)
-    item<-data.table(x=x, y=eval(rhs, envir = calc_env))
-    curve[[x+1]]<-item
-  }
-  curve<-rbindlist(curve)
-  ggplot(curve)+geom_line(aes(x=x, y=y))
 }

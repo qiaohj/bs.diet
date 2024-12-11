@@ -8,5 +8,5 @@ r
 
 ggplot(r)+geom_line(aes(x=age, y=death_rate, color=sp_id))
 
-ggplot(r[sp_id==3])+geom_line(aes(x=age, y=death_rate, color=factor(id)), linetype=1)+
-  geom_line(aes(x=age, y=random, color=factor(id)), linetype=2)
+ggplot(r[sp_id==3])+geom_line(aes(x=age, y=death_rate, color=factor(id)), linetype=2)+
+  geom_line(aes(x=age, y=random, color=factor(id)), linetype=1)
