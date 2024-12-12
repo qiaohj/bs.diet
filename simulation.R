@@ -1,7 +1,8 @@
-generate_new_individual<-function(individual, evolutionary.strategy="NONE"){
+generate_new_individual<-function(individual, number_individuals, 
+                                  evolutionary.strategy="NONE"){
   new_individual<-individual
   new_individual$init_loc<-individual$loc
-  new_individual$id<-number_species
+  new_individual$id<-number_individuals
   new_individual$sp_id<-sprintf("%s.%d", individual$sp_id, individual$id)
   new_individual$hp<-individual$init_hp
   new_individual$age<-0
@@ -21,15 +22,15 @@ simulation<-function(resource.group.id, individual.pool.id, max_steps){
   land_size<-nrow(resources[[1]])
   individual_list<-readRDS(sprintf("../Data/IndividualPools/%s.rda", individual.pool.id))
   
-  number_species<-c()
+  number_individuals<-c()
   for (i in c(1:length(individual_list))){
     individual<-individual_list[[i]]
     individual$path<-unserialize(individual$path)
-    number_species<-c(number_species, individual$id)
+    number_individuals<-c(number_individuals, individual$id)
     individual_list[[i]]<-individual
   }
   
-  number_species<-max(number_species)
+  number_individuals<-max(number_individuals)
   log<-list()
   resource_snapshot<-list()
   
@@ -168,9 +169,9 @@ simulation<-function(resource.group.id, individual.pool.id, max_steps){
           rnd_number<-runif(1)
           if (rnd_number<=individual$reproduction_probability){
             individual$hp<-individual$hp-individual$reproduction_cost
-            number_species<-number_species+1
+            number_individuals<-number_individuals+1
             
-            individual_list[[number_species]]<-generate_new_individual(individual)
+            individual_list[[number_individuals]]<-generate_new_individual(individual, number_individuals)
           }
         }
         individual$hp_gain<-0
@@ -195,11 +196,13 @@ simulation<-function(resource.group.id, individual.pool.id, max_steps){
                                      individual.pool.id))
   
   log_path<-unique(logdf[, c("id", "x", "y", "sp_id",  "alive")])
-  p1<-ggplot(logdf)+geom_line(aes(x=step, y=hp, group=id, color=sp_id))
+  p1<-ggplot(logdf)+geom_line(aes(x=step, y=hp, group=id, color=sp_id))+
+    theme(legend.position = "none")
   
   log_N<-logdf[, .(N=length(unique(id))), by=list(step, sp_id)]
   
-  p2<-ggplot(log_N)+geom_line(aes(x=step, y=N, color=sp_id))
+  p2<-ggplot(log_N)+geom_line(aes(x=step, y=N, color=sp_id))+
+    theme(legend.position = "none")
   ddd<-list()
   for (i in c(1:length(resource_snapshot))){
     rrr<-unserialize(resource_snapshot[[i]])
@@ -216,7 +219,7 @@ simulation<-function(resource.group.id, individual.pool.id, max_steps){
     scale_y_log10()+
     labs(color="res")
   
-  p<-ggpubr::ggarrange	(plotlist = list(p1, p2, p3), nrow =3)
+  p<-ggpubr::ggarrange(plotlist = list(p1, p2, p3), nrow =3)
   fig<-sprintf("simulation.%s.png", individual.pool.id)
   filename<-sprintf("../Figures/%s", fig)
   ggsave(p, filename=filename, width=10, height=15)

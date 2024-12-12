@@ -40,6 +40,7 @@ for (i in c(1:nrow(scenario))){
   
 }
 
+#Upload to Google Doc
 scenario<-scenario%>%mutate(
   link = glue(
     '=HYPERLINK("{link}", "SEE")'

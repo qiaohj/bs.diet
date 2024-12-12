@@ -58,10 +58,13 @@ for (j in c(1:nrow(resource.group))){
                ymin=0, ymax=resource_conf_item$land_size,
                resolution=resource_conf_item$resolution)
     index<-c(1:nrow_col^2)
-    if (resource_conf_item$eliminated_by %in% names(resources)){
-      v_item<-values(resources[[resource_conf_item$eliminated_by]])
-      eliminated_index<-v_item==0
-      index<-index[eliminated_index]
+    eliminated_bys<-trimws(strsplit(resource_conf_item$eliminated_by, ",")[[1]])
+    for (eliminated_by in eliminated_bys){
+      if (eliminated_by %in% names(resources)){
+        v_item<-values(resources[[eliminated_by]])
+        eliminated_index<-v_item==0
+        index<-index[eliminated_index]
+      }
     }
     index<-sample(index, ifelse(resource_conf_item$n_cell>length(index), 
                                 length(index), resource_conf_item$n_cell))
@@ -76,6 +79,7 @@ for (j in c(1:nrow(resource.group))){
   }
   #plot(resources[[1]])
   #plot(resources[[2]])
+  #plot(resources[[3]])
   resources_raw<-rast(resources)
   names(resources_raw)<-resource_conf$resource.id
   #plot(resources_raw[[2]])
