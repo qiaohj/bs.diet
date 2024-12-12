@@ -17,7 +17,7 @@ for (j in c(1:nrow(resource.group))){
   resource.group.item<-resource.group[j]
   target<-sprintf("../Data/Resources/%s.raster.rda", resource.group.item$resource.group.id)
   if (file.exists(target)){
-    next()
+    #next()
   }
   resource.template.ids<-
     trimws(strsplit(resource.group.item$resource.template.id, ",")[[1]])
@@ -39,7 +39,8 @@ for (j in c(1:nrow(resource.group))){
                           K=item_template$K,
                           init_energy=item_template$init_energy,
                           min_energy=item_template$min_energy,
-                          eliminated_by=item_template$eliminated_by)
+                          eliminated_by=item_template$eliminated_by,
+                          associate_with=item_template$associate_with)
     resource_conf[[length(resource_conf)+1]]<-conf_item
   }
   resource_conf<-rbindlist(resource_conf)
@@ -62,12 +63,29 @@ for (j in c(1:nrow(resource.group))){
     for (eliminated_by in eliminated_bys){
       if (eliminated_by %in% names(resources)){
         v_item<-values(resources[[eliminated_by]])
-        eliminated_index<-v_item==0
-        index<-index[eliminated_index]
+        index<-index[index %in% which(v_item==0)]
       }
     }
-    index<-sample(index, ifelse(resource_conf_item$n_cell>length(index), 
-                                length(index), resource_conf_item$n_cell))
+    associate_withs<-trimws(strsplit(resource_conf_item$associate_with, ",")[[1]])
+    associate_index<-index
+    for (associate_with in associate_withs){
+      if (associate_with %in% names(resources)){
+        v_item<-values(resources[[associate_with]])
+        associate_index<-associate_index[associate_index %in% which(v_item!=0)]
+      }
+    }
+    index_rnd<-index[!index %in% associate_index]
+    rnd_length<-(resource_conf_item$n_cell-length(associate_index))
+    if (rnd_length>0){
+      index_rnd<-sample(index_rnd, ifelse(rnd_length>length(index_rnd), 
+                        length(index_rnd), rnd_length))
+      index<-c(associate_index, index_rnd)
+    }else{
+      index<-associate_index
+      index<-sample(index, ifelse(resource_conf_item$n_cell>length(index), 
+                                  length(index), resource_conf_item$n_cell))
+    }
+    
     values(land)<-0
     values(land)[index]<-resource_conf_item$init_energy
     if (resource_conf_item$resolution!=1){
