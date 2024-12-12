@@ -67,21 +67,25 @@ for (j in c(1:nrow(resource.group))){
       }
     }
     associate_withs<-trimws(strsplit(resource_conf_item$associate_with, ",")[[1]])
-    associate_index<-index
+    associate_indices<-c()
     for (associate_with in associate_withs){
       if (associate_with %in% names(resources)){
+        #print(associate_with)
+        associate_index<-index
         v_item<-values(resources[[associate_with]])
         associate_index<-associate_index[associate_index %in% which(v_item!=0)]
+        associate_indices<-c(associate_indices, associate_index)
       }
     }
-    index_rnd<-index[!index %in% associate_index]
-    rnd_length<-(resource_conf_item$n_cell-length(associate_index))
+    associate_indices<-unique(associate_indices)
+    index_rnd<-index[!index %in% associate_indices]
+    rnd_length<-(resource_conf_item$n_cell-length(associate_indices))
     if (rnd_length>0){
       index_rnd<-sample(index_rnd, ifelse(rnd_length>length(index_rnd), 
                         length(index_rnd), rnd_length))
-      index<-c(associate_index, index_rnd)
+      index<-c(associate_indices, index_rnd)
     }else{
-      index<-associate_index
+      index<-associate_indices
       index<-sample(index, ifelse(resource_conf_item$n_cell>length(index), 
                                   length(index), resource_conf_item$n_cell))
     }
