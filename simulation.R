@@ -15,11 +15,11 @@ generate_new_individual<-function(individual, evolutionary.strategy="NONE"){
 }
 simulation<-function(resource.group.id, individual.pool.id, max_steps){
   #
-  target<-sprintf("../Data/Simulations/%d.rda", individual.pool.id)
-  resources<-readRDS(sprintf("../Data/Resources/%d.raster.rda", resource.group.id))
-  resource_conf<-readRDS(sprintf("../Data/Resources/%d.conf.rda", resource.group.id))
+  target<-sprintf("../Data/Simulations/%s.rda", individual.pool.id)
+  resources<-readRDS(sprintf("../Data/Resources/%s.raster.rda", resource.group.id))
+  resource_conf<-readRDS(sprintf("../Data/Resources/%s.conf.rda", resource.group.id))
   land_size<-nrow(resources[[1]])
-  individual_list<-readRDS(sprintf("../Data/IndividualPools/%d.rda", individual.pool.id))
+  individual_list<-readRDS(sprintf("../Data/IndividualPools/%s.rda", individual.pool.id))
   
   number_species<-c()
   for (i in c(1:length(individual_list))){
@@ -191,7 +191,8 @@ simulation<-function(resource.group.id, individual.pool.id, max_steps){
   logdf<-rbindlist(log)
   
   saveRDS(logdf, target)
-  saveRDS(resource_snapshot, sprintf("../Data/Simulations/resource_snapshot.%d.rda", individual.pool.id))
+  saveRDS(resource_snapshot, sprintf("../Data/Simulations/resource_snapshot.%s.rda", 
+                                     individual.pool.id))
   
   log_path<-unique(logdf[, c("id", "x", "y", "sp_id",  "alive")])
   p1<-ggplot(logdf)+geom_line(aes(x=step, y=hp, group=id, color=sp_id))
@@ -210,13 +211,13 @@ simulation<-function(resource.group.id, individual.pool.id, max_steps){
     }
   }
   ddd<-rbindlist(ddd)
-  saveRDS(ddd, sprintf("../Data/Simulations/resource_summary.%d.rda", individual.pool.id))
+  saveRDS(ddd, sprintf("../Data/Simulations/resource_summary.%s.rda", individual.pool.id))
   p3<-ggplot(ddd)+geom_line(aes(x=step, y=v, color=factor(resource)))+
     scale_y_log10()+
     labs(color="res")
   
   p<-ggpubr::ggarrange	(plotlist = list(p1, p2, p3), nrow =3)
-  fig<-sprintf("simulation.%d.png", individual.pool.id)
+  fig<-sprintf("simulation.%s.png", individual.pool.id)
   filename<-sprintf("../Figures/%s", fig)
   ggsave(p, filename=filename, width=10, height=15)
   data.table(filename=fig, path=filename)

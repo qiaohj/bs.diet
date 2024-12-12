@@ -15,12 +15,12 @@ resource.group<-data.table(read_sheet(config_link,
 
 for (j in c(1:nrow(resource.group))){
   resource.group.item<-resource.group[j]
-  target<-sprintf("../Data/Resources/%d.raster.rda", resource.group.item$resource.group.id)
+  target<-sprintf("../Data/Resources/%s.raster.rda", resource.group.item$resource.group.id)
   if (file.exists(target)){
     next()
   }
   resource.template.ids<-
-    as.numeric(trimws(strsplit(resource.group.item$resource.template.id, ",")[[1]]))
+    trimws(strsplit(resource.group.item$resource.template.id, ",")[[1]])
   resource_conf<-list()
   for (i in c(1:length(resource.template.ids))){
     item_template<-resource.template[resource.template.id==resource.template.ids[i]]
@@ -31,20 +31,22 @@ for (j in c(1:nrow(resource.group))){
     if (item_template$n_cell_with_resource>item_template$land_size^2){
       stop("n_cell_with_resource should be smaller than resolution^2.")
     }
-    conf_item<-data.table(land_size=item_template$land_size, 
+    conf_item<-data.table(resource.id=item_template$resource.template.id,
+                          land_size=item_template$land_size, 
                           resolution=item_template$resolution,
                           n_cell_with_resource=item_template$n_cell_with_resource,
                           r=item_template$r,
                           K=item_template$K,
                           init_energy=item_template$init_energy,
-                          min_energy=item_template$min_energy)
+                          min_energy=item_template$min_energy,
+                          eliminated_by=item_template$eliminated_by)
     resource_conf[[length(resource_conf)+1]]<-conf_item
   }
   resource_conf<-rbindlist(resource_conf)
   if (length(unique(resource_conf$land_size))!=1){
     stop("all the landsize should be the same")
   }
-  resource_conf$id<-c(1:nrow(resource_conf))
+  #resource_conf$id<-c(1:nrow(resource_conf))
   resources<-list()
   for (i in c(1:nrow(resource_conf))){
     resource_conf_item<-resource_conf[i]
@@ -55,7 +57,14 @@ for (j in c(1:nrow(resource.group))){
                xmin=0, xmax=resource_conf_item$land_size,
                ymin=0, ymax=resource_conf_item$land_size,
                resolution=resource_conf_item$resolution)
-    index<-sample(nrow_col^2, resource_conf_item$n_cell)
+    index<-c(1:nrow_col^2)
+    if (resource_conf_item$eliminated_by %in% names(resources)){
+      v_item<-values(resources[[resource_conf_item$eliminated_by]])
+      eliminated_index<-v_item==0
+      index<-index[eliminated_index]
+    }
+    index<-sample(index, ifelse(resource_conf_item$n_cell>length(index), 
+                                length(index), resource_conf_item$n_cell))
     values(land)<-0
     values(land)[index]<-resource_conf_item$init_energy
     if (resource_conf_item$resolution!=1){
@@ -63,16 +72,16 @@ for (j in c(1:nrow(resource.group))){
     }else{
       land_raw<-land
     }
-    resources[[i]]<-land_raw
+    resources[[resource_conf_item$resource.id]]<-land_raw
   }
   #plot(resources[[1]])
   #plot(resources[[2]])
   resources_raw<-rast(resources)
-  names(resources_raw)<-sprintf("resource.%d", resource_conf$id)
+  names(resources_raw)<-resource_conf$resource.id
   #plot(resources_raw[[2]])
   
-  saveRDS(resources_raw, sprintf("../Data/Resources/%d.raster.rda", resource.group.item$resource.group.id))
-  saveRDS(resource_conf, sprintf("../Data/Resources/%d.conf.rda", resource.group.item$resource.group.id))
+  saveRDS(resources_raw, sprintf("../Data/Resources/%s.raster.rda", resource.group.item$resource.group.id))
+  saveRDS(resource_conf, sprintf("../Data/Resources/%s.conf.rda", resource.group.item$resource.group.id))
 }
 
 species<-data.table(read_sheet(config_link,
@@ -83,12 +92,14 @@ individual.pool<-data.table(read_sheet(config_link,
 
 for (i in c(1:nrow(individual.pool))){
   individual.pool.item<-individual.pool[i]
-  target<-sprintf("../Data/IndividualPools/%d.rda", individual.pool.item$individual.pool.id)
+  target<-sprintf("../Data/IndividualPools/%s.rda", individual.pool.item$individual.pool.id)
   if (file.exists(target)){
     next
   }
-  resource.group.conf<-readRDS(sprintf("../Data/Resources/%d.conf.rda", individual.pool.item$resource.group.id))
-  resources<-readRDS(sprintf("../Data/Resources/%d.raster.rda", individual.pool.item$resource.group.id))
+  resource.group.conf<-readRDS(sprintf("../Data/Resources/%s.conf.rda", 
+                                       individual.pool.item$resource.group.id))
+  resources<-readRDS(sprintf("../Data/Resources/%s.raster.rda", 
+                             individual.pool.item$resource.group.id))
   
   blank_path<-resources[[1]]
   values(blank_path)<-0

@@ -13,7 +13,7 @@ individual.pool<-data.table(read_sheet(config_link,
                                       sheet="individual.pool"))
 
 for (i in c(1:nrow(scenario))){
-  item<-scenario[1,]
+  item<-scenario[i,]
   
   if (item$status %in% c("RUNNING", "DONE")){
     next()
@@ -25,7 +25,7 @@ for (i in c(1:nrow(scenario))){
   individual.pool.item<-individual.pool[individual.pool.id==item$individual.pool.id]
   rrr<-simulation(individual.pool.item$resource.group.id,
                   individual.pool.item$individual.pool.id,
-                  scenario$max_steps)
+                  scenario[i,]$max_steps)
   
   drive_upload(rrr$path,
                overwrite=T)
@@ -34,14 +34,16 @@ for (i in c(1:nrow(scenario))){
   drive_share(rrr$filename,
               role = "reader", type = "anyone")
   
-  scenario$link<-googledrive::drive_link(rrr$filename)
+  scenario[i,]$link<-googledrive::drive_link(rrr$filename)
   
-  scenario<-scenario%>%mutate(
-    link = glue(
-      '=HYPERLINK("{link}", "SEE")'
-    )
-  )
-  scenario$link<-gs4_formula(scenario$link)
-  scenario$status<-"DONE"
-  write_sheet(scenario, ss=config_link, sheet="scenario")
+  scenario[i,]$status<-"DONE"
+  
 }
+
+scenario<-scenario%>%mutate(
+  link = glue(
+    '=HYPERLINK("{link}", "SEE")'
+  )
+)
+scenario$link<-gs4_formula(scenario$link)
+write_sheet(scenario, ss=config_link, sheet="scenario")
